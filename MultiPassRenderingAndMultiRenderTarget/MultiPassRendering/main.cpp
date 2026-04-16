@@ -485,7 +485,7 @@ void RenderPass2()
 
     hResult = g_pEffect2->SetTexture("texture1", g_pRenderTarget);  assert(hResult == S_OK);
     hResult = g_pEffect2->SetTexture("texture2", g_pRenderTarget2); assert(hResult == S_OK);
-    hResult = g_pEffect2->SetFloat("g_blurScale", g_bEnableMotionBlur ? 2.0f : 0.0f);
+    hResult = g_pEffect2->SetFloat("g_blurScale", g_bEnableMotionBlur ? 4.0f : 0.0f);
     assert(hResult == S_OK);
     hResult = g_pEffect2->SetFloat("g_velocityDecodeScale", kVelocityScale);
     assert(hResult == S_OK);
