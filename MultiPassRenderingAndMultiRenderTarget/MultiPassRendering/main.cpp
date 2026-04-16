@@ -40,6 +40,9 @@ LPDIRECT3DVERTEXDECLARATION9 g_pQuadDecl = NULL;
 // 追加: スプライト
 LPD3DXSPRITE g_pSprite = NULL;
 
+const int kWindowWidth = 1600;
+const int kWindowHeight = 900;
+
 struct QuadVertex
 {
     float x, y, z, w; // クリップ空間（-1..1, w=1）
@@ -86,7 +89,7 @@ int WINAPI _tWinMain(_In_ HINSTANCE hInstance,
     assert(atom != 0);
 
     RECT rect;
-    SetRect(&rect, 0, 0, 640, 480);
+    SetRect(&rect, 0, 0, kWindowWidth, kWindowHeight);
     AdjustWindowRect(&rect, WS_OVERLAPPEDWINDOW, FALSE);
     rect.right = rect.right - rect.left;
     rect.bottom = rect.bottom - rect.top;
@@ -285,7 +288,7 @@ void InitD3D(HWND hWnd)
 
     // === 変更: RT を 2 枚作成（両方 A8R8G8B8） ===
     hResult = D3DXCreateTexture(g_pd3dDevice,
-                                640, 480,
+                                kWindowWidth, kWindowHeight,
                                 1,
                                 D3DUSAGE_RENDERTARGET,
                                 D3DFMT_A8R8G8B8,
@@ -294,7 +297,7 @@ void InitD3D(HWND hWnd)
     assert(hResult == S_OK);
 
     hResult = D3DXCreateTexture(g_pd3dDevice,
-                                640, 480,
+                                kWindowWidth, kWindowHeight,
                                 1,
                                 D3DUSAGE_RENDERTARGET,
                                 D3DFMT_A8R8G8B8,
@@ -360,26 +363,28 @@ void RenderPass1()
     hResult = g_pd3dDevice->SetRenderTarget(1, pRT1); assert(hResult == S_OK);
 
     static float f = 0.0f;
-    f += 0.025f;
+    static float t = 0.0f;
+    t += 1.0f / 60.0f;
 
-    D3DXMATRIX mat;
+    const float minAngularSpeed = 0.01f;
+    const float maxAngularSpeed = 0.06f;
+    const float speedBlend = 0.5f + 0.5f * sinf(t * 1.2f);
+    const float angularSpeed = minAngularSpeed + (maxAngularSpeed - minAngularSpeed) * speedBlend;
+    f += angularSpeed;
+
+    D3DXMATRIX matWorld;
     D3DXMATRIX View, Proj;
 
     D3DXMatrixPerspectiveFovLH(&Proj,
                                D3DXToRadian(45),
-                               640.0f / 480.0f,
+                               static_cast<float>(kWindowWidth) / static_cast<float>(kWindowHeight),
                                1.0f,
                                10000.0f);
 
-    D3DXVECTOR3 eye(10 * sinf(f), 5, -10 * cosf(f));
+    D3DXVECTOR3 eye(0.0f, 5.0f, -15.0f);
     D3DXVECTOR3 at(0, 0, 0);
     D3DXVECTOR3 up(0, 1, 0);
     D3DXMatrixLookAtLH(&View, &eye, &at, &up);
-    D3DXMatrixIdentity(&mat);
-    mat = mat * View * Proj;
-
-    hResult = g_pEffect1->SetMatrix("g_matWorldViewProj", &mat);
-    assert(hResult == S_OK);
 
     hResult = g_pd3dDevice->Clear(0, NULL,
                                   D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
@@ -403,6 +408,10 @@ void RenderPass1()
     hResult = g_pEffect1->BeginPass(0);       assert(hResult == S_OK);
 
     // メッシュ（テクスチャあり）
+    D3DXMatrixRotationY(&matWorld, f);
+    D3DXMATRIX matWorldViewProj = matWorld * View * Proj;
+    hResult = g_pEffect1->SetMatrix("g_matWorldViewProj", &matWorldViewProj);
+    assert(hResult == S_OK);
     hResult = g_pEffect1->SetBool("g_bUseTexture", TRUE); assert(hResult == S_OK);
     for (DWORD i = 0; i < g_dwNumMaterials; i++)
     {
@@ -413,6 +422,10 @@ void RenderPass1()
 
     // 球（テクスチャなし）
     {
+        D3DXMatrixTranslation(&matWorld, 0.0f, 0.0f, 35.0f);
+        matWorldViewProj = matWorld * View * Proj;
+        hResult = g_pEffect1->SetMatrix("g_matWorldViewProj", &matWorldViewProj);
+        assert(hResult == S_OK);
         hResult = g_pEffect1->SetBool("g_bUseTexture", FALSE); assert(hResult == S_OK);
         hResult = g_pEffect1->SetTexture("texture1", NULL);    assert(hResult == S_OK);
         hResult = g_pEffect1->CommitChanges();                 assert(hResult == S_OK);
@@ -493,8 +506,8 @@ void DrawFullscreenQuad()
 {
     QuadVertex v[4] { };
 
-    float du = 0.5f / 640.f;
-    float dv = 0.5f / 480.f;
+    float du = 0.5f / static_cast<float>(kWindowWidth);
+    float dv = 0.5f / static_cast<float>(kWindowHeight);
 
     v[0].x = -1.0f; v[0].y = -1.0f; v[0].z = 0.0f; v[0].w = 1.0f; v[0].u = 0.0f + du; v[0].v = 1.0f - dv;
     v[1].x = -1.0f; v[1].y = 1.0f; v[1].z = 0.0f; v[1].w = 1.0f; v[1].u = 0.0f + du; v[1].v = 0.0f + dv;
