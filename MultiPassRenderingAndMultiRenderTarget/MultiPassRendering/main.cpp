@@ -396,7 +396,7 @@ void RenderPass1()
                                1.0f,
                                10000.0f);
 
-    D3DXVECTOR3 eye(0.0f, 5.0f, -15.0f);
+    D3DXVECTOR3 eye(0.0f, 4.0f, -9.0f);
     D3DXVECTOR3 at(0, 0, 0);
     D3DXVECTOR3 up(0, 1, 0);
     D3DXMatrixLookAtLH(&View, &eye, &at, &up);
