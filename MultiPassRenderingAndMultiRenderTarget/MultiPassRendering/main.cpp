@@ -374,7 +374,7 @@ void RenderPass1()
     const float pauseDuration = 1.0f;
     const float activeDuration = cycleDuration - pauseDuration;
     const float minAngularSpeed = 0.01f;
-    const float maxAngularSpeed = 0.06f;
+    const float maxAngularSpeed = 0.12f;
     const float cycleTime = fmodf(t, cycleDuration);
     float angularSpeed = 0.0f;
 
