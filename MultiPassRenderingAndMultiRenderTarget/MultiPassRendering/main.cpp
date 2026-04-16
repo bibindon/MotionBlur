@@ -446,22 +446,6 @@ void RenderPass1()
         hResult = g_pMesh->DrawSubset(i);                              assert(hResult == S_OK);
     }
 
-    // 球（テクスチャなし）
-    {
-        D3DXMatrixTranslation(&matWorld, 0.0f, 0.0f, 35.0f);
-        D3DXMatrixTranslation(&matPrevWorld, 0.0f, 0.0f, 35.0f);
-        matWorldViewProj = matWorld * View * Proj;
-        matPrevWorldViewProj = matPrevWorld * View * Proj;
-        hResult = g_pEffect1->SetMatrix("g_matWorldViewProj", &matWorldViewProj);
-        assert(hResult == S_OK);
-        hResult = g_pEffect1->SetMatrix("g_matPrevWorldViewProj", &matPrevWorldViewProj);
-        assert(hResult == S_OK);
-        hResult = g_pEffect1->SetBool("g_bUseTexture", FALSE); assert(hResult == S_OK);
-        hResult = g_pEffect1->SetTexture("texture1", NULL);    assert(hResult == S_OK);
-        hResult = g_pEffect1->CommitChanges();                 assert(hResult == S_OK);
-        hResult = g_pMeshSphere->DrawSubset(0);                assert(hResult == S_OK);
-    }
-
     hResult = g_pEffect1->EndPass(); assert(hResult == S_OK);
     hResult = g_pEffect1->End();     assert(hResult == S_OK);
 
