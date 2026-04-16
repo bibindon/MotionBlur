@@ -1,56 +1,58 @@
-float4x4 g_matWorldViewProj;
-float4 g_lightNormal = { 0.3f, 1.0f, 0.5f, 0.0f };
-float3 g_ambient = { 0.3f, 0.3f, 0.3f };
-
-bool g_bUseTexture = true;
+float g_blurScale = 1.0f;
 
 texture texture1;
-sampler textureSampler = sampler_state {
+sampler colorSampler = sampler_state
+{
     Texture = (texture1);
-    MipFilter = NONE;
-    MinFilter = POINT;
-    MagFilter = POINT;
+    MipFilter = LINEAR;
+    MinFilter = LINEAR;
+    MagFilter = LINEAR;
+    AddressU = CLAMP;
+    AddressV = CLAMP;
 };
 
-void VertexShader1(in  float4 inPosition  : POSITION,
-                   in  float2 inTexCood   : TEXCOORD0,
+texture texture2;
+sampler velocitySampler = sampler_state
+{
+    Texture = (texture2);
+    MipFilter = LINEAR;
+    MinFilter = LINEAR;
+    MagFilter = LINEAR;
+    AddressU = CLAMP;
+    AddressV = CLAMP;
+};
 
-                   out float4 outPosition : POSITION,
-                   out float2 outTexCood  : TEXCOORD0)
+void VertexShader1(
+    in float4 inPosition : POSITION,
+    in float2 inTexCoord : TEXCOORD0,
+    out float4 outPosition : POSITION,
+    out float2 outTexCoord : TEXCOORD0)
 {
     outPosition = inPosition;
-    outTexCood = inTexCood;
+    outTexCoord = inTexCoord;
 }
 
-void PixelShader1(in float4 inPosition    : POSITION,
-                  in float2 inTexCood     : TEXCOORD0,
-
-                  out float4 outColor     : COLOR)
+void PixelShader1(
+    in float2 inTexCoord : TEXCOORD0,
+    out float4 outColor : COLOR)
 {
-    float4 workColor = (float4)0;
-    workColor = tex2D(textureSampler, inTexCood);
+    float2 encodedVelocity = tex2D(velocitySampler, inTexCoord).rg;
+    float2 velocity = (encodedVelocity * 2.0f - 1.0f) * g_blurScale;
 
-    //float average = (workColor.r + workColor.g + workColor.b) / 3;
-    float average = workColor.r * 0.2 + workColor.g * 0.7 + workColor.b * 0.1;
+    const int sampleCount = 7;
+    float4 accumColor = 0.0f;
+    float accumWeight = 0.0f;
 
-    // 試しに彩度を上げたり下げたりしてみる
-    if (true)
+    for (int i = 0; i < sampleCount; ++i)
     {
-        workColor.r += (workColor.r - average);
-        workColor.g += (workColor.g - average);
-        workColor.b += (workColor.b - average);
-    }
-    else
-    {
-        workColor.r -= (workColor.r - average) / 2.f;
-        workColor.g -= (workColor.g - average) / 2.f;
-        workColor.b -= (workColor.b - average) / 2.f;
+        float t = (float(i) / float(sampleCount - 1)) - 0.5f;
+        float weight = 1.0f - abs(t) * 1.6f;
+        float2 sampleUv = saturate(inTexCoord - velocity * t);
+        accumColor += tex2D(colorSampler, sampleUv) * weight;
+        accumWeight += weight;
     }
 
-    workColor = saturate(workColor);
-
-    outColor = workColor;
-    
+    outColor = accumColor / max(accumWeight, 0.0001f);
 }
 
 technique Technique1
@@ -58,8 +60,7 @@ technique Technique1
     pass Pass1
     {
         CullMode = NONE;
-
         VertexShader = compile vs_3_0 VertexShader1();
         PixelShader = compile ps_3_0 PixelShader1();
-   }
+    }
 }

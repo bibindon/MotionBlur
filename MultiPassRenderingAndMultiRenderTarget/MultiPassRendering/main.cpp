@@ -29,6 +29,7 @@ LPD3DXEFFECT g_pEffect1 = NULL;
 LPD3DXEFFECT g_pEffect2 = NULL;
 
 bool g_bClose = false;
+bool g_bShowDebugTarget = true;
 
 // === 変更: RT を 2 枚用意 ===
 LPDIRECT3DTEXTURE9 g_pRenderTarget = NULL;
@@ -204,7 +205,7 @@ void InitD3D(HWND hWnd)
                              OUT_TT_ONLY_PRECIS,
                              CLEARTYPE_NATURAL_QUALITY,
                              FF_DONTCARE,
-                             _T("ＭＳ ゴシック"),
+                             _T("MS Gothic"),
                              &g_pFont);
     assert(hResult == S_OK);
 
@@ -362,15 +363,27 @@ void RenderPass1()
     hResult = g_pd3dDevice->SetRenderTarget(0, pRT0); assert(hResult == S_OK);
     hResult = g_pd3dDevice->SetRenderTarget(1, pRT1); assert(hResult == S_OK);
 
-    static float f = 0.0f;
+    static float rotationAngle = 0.0f;
     static float t = 0.0f;
+    const float previousAngle = rotationAngle;
     t += 1.0f / 60.0f;
 
+    const float cycleDuration = 5.0f;
+    const float pauseDuration = 1.0f;
+    const float activeDuration = cycleDuration - pauseDuration;
     const float minAngularSpeed = 0.01f;
     const float maxAngularSpeed = 0.06f;
-    const float speedBlend = 0.5f + 0.5f * sinf(t * 1.2f);
-    const float angularSpeed = minAngularSpeed + (maxAngularSpeed - minAngularSpeed) * speedBlend;
-    f += angularSpeed;
+    const float cycleTime = fmodf(t, cycleDuration);
+    float angularSpeed = 0.0f;
+
+    if (cycleTime < activeDuration)
+    {
+        const float normalizedTime = cycleTime / activeDuration;
+        const float speedBlend = 0.5f - 0.5f * cosf(normalizedTime * D3DX_PI * 2.0f);
+        angularSpeed = minAngularSpeed + (maxAngularSpeed - minAngularSpeed) * speedBlend;
+    }
+
+    rotationAngle += angularSpeed;
 
     D3DXMATRIX matWorld;
     D3DXMATRIX View, Proj;
@@ -396,7 +409,7 @@ void RenderPass1()
 
     // タイトル
     TCHAR msg[100];
-    _tcscpy_s(msg, 100, _T("SSAOに挑戦"));
+    _tcscpy_s(msg, 100, _T("Motion Blur Challenge"));
     TextDraw(g_pFont, msg, 0, 0);
 
     // === 変更: MRT 用テクニックを使用 ===
@@ -408,9 +421,14 @@ void RenderPass1()
     hResult = g_pEffect1->BeginPass(0);       assert(hResult == S_OK);
 
     // メッシュ（テクスチャあり）
-    D3DXMatrixRotationY(&matWorld, f);
+    D3DXMATRIX matPrevWorld;
+    D3DXMatrixRotationY(&matWorld, rotationAngle);
+    D3DXMatrixRotationY(&matPrevWorld, previousAngle);
     D3DXMATRIX matWorldViewProj = matWorld * View * Proj;
+    D3DXMATRIX matPrevWorldViewProj = matPrevWorld * View * Proj;
     hResult = g_pEffect1->SetMatrix("g_matWorldViewProj", &matWorldViewProj);
+    assert(hResult == S_OK);
+    hResult = g_pEffect1->SetMatrix("g_matPrevWorldViewProj", &matPrevWorldViewProj);
     assert(hResult == S_OK);
     hResult = g_pEffect1->SetBool("g_bUseTexture", TRUE); assert(hResult == S_OK);
     for (DWORD i = 0; i < g_dwNumMaterials; i++)
@@ -423,8 +441,12 @@ void RenderPass1()
     // 球（テクスチャなし）
     {
         D3DXMatrixTranslation(&matWorld, 0.0f, 0.0f, 35.0f);
+        D3DXMatrixTranslation(&matPrevWorld, 0.0f, 0.0f, 35.0f);
         matWorldViewProj = matWorld * View * Proj;
+        matPrevWorldViewProj = matPrevWorld * View * Proj;
         hResult = g_pEffect1->SetMatrix("g_matWorldViewProj", &matWorldViewProj);
+        assert(hResult == S_OK);
+        hResult = g_pEffect1->SetMatrix("g_matPrevWorldViewProj", &matPrevWorldViewProj);
         assert(hResult == S_OK);
         hResult = g_pEffect1->SetBool("g_bUseTexture", FALSE); assert(hResult == S_OK);
         hResult = g_pEffect1->SetTexture("texture1", NULL);    assert(hResult == S_OK);
@@ -469,8 +491,10 @@ void RenderPass2()
     hResult = g_pEffect2->Begin(&numPass, 0);               assert(hResult == S_OK);
     hResult = g_pEffect2->BeginPass(0);                     assert(hResult == S_OK);
 
-    hResult = g_pEffect2->SetTexture("texture1", g_pRenderTarget); assert(hResult == S_OK);
-    hResult = g_pEffect2->CommitChanges();                          assert(hResult == S_OK);
+    hResult = g_pEffect2->SetTexture("texture1", g_pRenderTarget);  assert(hResult == S_OK);
+    hResult = g_pEffect2->SetTexture("texture2", g_pRenderTarget2); assert(hResult == S_OK);
+    hResult = g_pEffect2->SetFloat("g_blurScale", 2.0f);            assert(hResult == S_OK);
+    hResult = g_pEffect2->CommitChanges();                           assert(hResult == S_OK);
 
     DrawFullscreenQuad();
 
@@ -478,7 +502,7 @@ void RenderPass2()
     hResult = g_pEffect2->End();     assert(hResult == S_OK);
 
     // === 追加: 左上に RT1 を 1/2 スケールで表示（D3DXSPRITE） ===
-    if (g_pSprite)
+    if (g_bShowDebugTarget && g_pSprite)
     {
         hResult = g_pSprite->Begin(D3DXSPRITE_ALPHABLEND);  assert(hResult == S_OK);
 
@@ -522,6 +546,15 @@ LRESULT WINAPI MsgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     switch (msg)
     {
+    case WM_KEYDOWN:
+    {
+        if (wParam == '1')
+        {
+            g_bShowDebugTarget = !g_bShowDebugTarget;
+            return 0;
+        }
+        break;
+    }
     case WM_DESTROY:
     {
         PostQuitMessage(0);
