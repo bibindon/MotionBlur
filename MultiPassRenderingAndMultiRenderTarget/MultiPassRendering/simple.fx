@@ -2,6 +2,7 @@ float4x4 g_matWorldViewProj;
 float4x4 g_matPrevWorldViewProj;
 
 bool g_bUseTexture = true;
+float g_velocityEncodeScale = 24.0f;
 
 texture texture1;
 sampler textureSampler = sampler_state
@@ -50,8 +51,10 @@ void PixelShaderMRT(
     float2 prevUv = float2(prevNdc.x * 0.5f + 0.5f, -prevNdc.y * 0.5f + 0.5f);
     float2 velocityUv = currentUv - prevUv;
 
+    float2 encodedVelocity = saturate(velocityUv * g_velocityEncodeScale + 0.5f);
+
     outColor0 = baseColor;
-    outColor1 = float4(saturate(velocityUv * 0.5f + 0.5f), 0.5f, 1.0f);
+    outColor1 = float4(encodedVelocity, 0.5f, 1.0f);
 }
 
 technique TechniqueMRT

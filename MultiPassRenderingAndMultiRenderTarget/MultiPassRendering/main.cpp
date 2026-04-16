@@ -44,6 +44,7 @@ LPD3DXSPRITE g_pSprite = NULL;
 
 const int kWindowWidth = 1600;
 const int kWindowHeight = 900;
+const float kVelocityScale = 24.0f;
 
 struct QuadVertex
 {
@@ -420,6 +421,8 @@ void RenderPass1()
     // === 変更: MRT 用テクニックを使用 ===
     hResult = g_pEffect1->SetTechnique("TechniqueMRT");
     assert(hResult == S_OK);
+    hResult = g_pEffect1->SetFloat("g_velocityEncodeScale", kVelocityScale);
+    assert(hResult == S_OK);
 
     UINT numPass = 0;
     hResult = g_pEffect1->Begin(&numPass, 0); assert(hResult == S_OK);
@@ -499,6 +502,8 @@ void RenderPass2()
     hResult = g_pEffect2->SetTexture("texture1", g_pRenderTarget);  assert(hResult == S_OK);
     hResult = g_pEffect2->SetTexture("texture2", g_pRenderTarget2); assert(hResult == S_OK);
     hResult = g_pEffect2->SetFloat("g_blurScale", g_bEnableMotionBlur ? 2.0f : 0.0f);
+    assert(hResult == S_OK);
+    hResult = g_pEffect2->SetFloat("g_velocityDecodeScale", kVelocityScale);
     assert(hResult == S_OK);
     hResult = g_pEffect2->CommitChanges();                           assert(hResult == S_OK);
 

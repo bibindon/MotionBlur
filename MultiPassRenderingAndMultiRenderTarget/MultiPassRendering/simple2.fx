@@ -1,4 +1,5 @@
 float g_blurScale = 1.0f;
+float g_velocityDecodeScale = 24.0f;
 
 texture texture1;
 sampler colorSampler = sampler_state
@@ -15,9 +16,9 @@ texture texture2;
 sampler velocitySampler = sampler_state
 {
     Texture = (texture2);
-    MipFilter = LINEAR;
-    MinFilter = LINEAR;
-    MagFilter = LINEAR;
+    MipFilter = NONE;
+    MinFilter = POINT;
+    MagFilter = POINT;
     AddressU = CLAMP;
     AddressV = CLAMP;
 };
@@ -37,7 +38,13 @@ void PixelShader1(
     out float4 outColor : COLOR)
 {
     float2 encodedVelocity = tex2D(velocitySampler, inTexCoord).rg;
-    float2 velocity = (encodedVelocity * 2.0f - 1.0f) * g_blurScale;
+    float2 velocity = ((encodedVelocity - 0.5f) / g_velocityDecodeScale) * g_blurScale;
+
+    if (dot(velocity, velocity) < 0.000001f)
+    {
+        outColor = tex2D(colorSampler, inTexCoord);
+        return;
+    }
 
     const int sampleCount = 7;
     float4 accumColor = 0.0f;
