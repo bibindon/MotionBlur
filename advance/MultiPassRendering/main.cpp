@@ -52,7 +52,7 @@ struct QuadVertex
     float u, v;       // テクスチャ座標
 };
 
-static void TextDraw(LPD3DXFONT pFont, TCHAR* text, int X, int Y);
+static void TextDraw(LPD3DXFONT pFont, TCHAR* text, int X, int Y, D3DCOLOR color = D3DCOLOR_ARGB(255, 0, 0, 0));
 static void InitD3D(HWND hWnd);
 static void Cleanup();
 
@@ -143,7 +143,7 @@ int WINAPI _tWinMain(_In_ HINSTANCE hInstance,
     return 0;
 }
 
-void TextDraw(LPD3DXFONT pFont, TCHAR* text, int X, int Y)
+void TextDraw(LPD3DXFONT pFont, TCHAR* text, int X, int Y, D3DCOLOR color)
 {
     RECT rect = { X, Y, 0, 0 };
 
@@ -152,7 +152,7 @@ void TextDraw(LPD3DXFONT pFont, TCHAR* text, int X, int Y)
                                       -1,
                                       &rect,
                                       DT_LEFT | DT_NOCLIP,
-                                      D3DCOLOR_ARGB(255, 0, 0, 0));
+                                      color);
 
     assert((int)hResult >= 0);
 }
@@ -198,7 +198,7 @@ void InitD3D(HWND hWnd)
     }
 
     hResult = D3DXCreateFont(g_pd3dDevice,
-                             20,
+                             32,
                              0,
                              FW_HEAVY,
                              1,
@@ -413,10 +413,17 @@ void RenderPass1()
 
     hResult = g_pd3dDevice->BeginScene(); assert(hResult == S_OK);
 
-    // タイトル
+    // タイトルと状態
     TCHAR msg[100];
     _tcscpy_s(msg, 100, _T("Motion Blur Challenge"));
-    TextDraw(g_pFont, msg, 0, 0);
+    TextDraw(g_pFont, msg, 20, kWindowHeight - 90);
+
+    TCHAR status[100];
+    _stprintf_s(status, 100, _T("Motion Blur: %s"), g_bEnableMotionBlur ? _T("ON") : _T("OFF"));
+    const D3DCOLOR statusColor = g_bEnableMotionBlur
+        ? D3DCOLOR_ARGB(255, 80, 255, 80)
+        : D3DCOLOR_ARGB(255, 255, 96, 96);
+    TextDraw(g_pFont, status, 20, kWindowHeight - 50, statusColor);
 
     // === 変更: MRT 用テクニックを使用 ===
     hResult = g_pEffect1->SetTechnique("TechniqueMRT");
@@ -502,7 +509,7 @@ void RenderPass2()
         hResult = g_pSprite->Begin(D3DXSPRITE_ALPHABLEND);  assert(hResult == S_OK);
 
         D3DXMATRIX mat;
-        D3DXVECTOR2 scaling(0.5f, 0.5f);     // 半分
+        D3DXVECTOR2 scaling(1.0f / 3.0f, 1.0f / 3.0f);
         D3DXVECTOR2 trans(0.0f, 0.0f);       // 左上
         D3DXMatrixTransformation2D(&mat, NULL, 0.0f, &scaling, NULL, 0.0f, &trans);
         g_pSprite->SetTransform(&mat);

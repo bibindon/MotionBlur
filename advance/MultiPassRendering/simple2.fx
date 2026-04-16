@@ -2,12 +2,22 @@ float g_blurScale = 1.0f;
 float g_velocityDecodeScale = 24.0f;
 
 texture texture1;
-sampler colorSampler = sampler_state
+sampler colorPointSampler = sampler_state
 {
     Texture = (texture1);
     MipFilter = NONE;
     MinFilter = POINT;
     MagFilter = POINT;
+    AddressU = CLAMP;
+    AddressV = CLAMP;
+};
+
+sampler colorLinearSampler = sampler_state
+{
+    Texture = (texture1);
+    MipFilter = NONE;
+    MinFilter = LINEAR;
+    MagFilter = LINEAR;
     AddressU = CLAMP;
     AddressV = CLAMP;
 };
@@ -39,23 +49,28 @@ void PixelShader1(
 {
     float2 encodedVelocity = tex2D(velocitySampler, inTexCoord).rg;
     float2 velocity = ((encodedVelocity - 0.5f) / g_velocityDecodeScale) * g_blurScale;
+    float velocityLength = length(velocity);
 
-    if (dot(velocity, velocity) < 0.000001f)
+    if (velocityLength < 0.0005f)
     {
-        outColor = tex2D(colorSampler, inTexCoord);
+        outColor = tex2D(colorPointSampler, inTexCoord);
         return;
     }
 
-    const int sampleCount = 7;
+    float2 blurDirection = velocity / velocityLength;
+    float blurRadius = min(velocityLength, 0.12f);
     float4 accumColor = 0.0f;
     float accumWeight = 0.0f;
+    const int sampleCount = 21;
+    const float sigma = 0.35f;
 
     for (int i = 0; i < sampleCount; ++i)
     {
-        float t = (float(i) / float(sampleCount - 1)) - 0.5f;
-        float weight = 1.0f - abs(t) * 1.6f;
-        float2 sampleUv = saturate(inTexCoord - velocity * t);
-        accumColor += tex2D(colorSampler, sampleUv) * weight;
+        float t = (float(i) / float(sampleCount - 1)) * 2.0f - 1.0f;
+        float weight = exp(-(t * t) / (2.0f * sigma * sigma));
+        float2 sampleOffset = blurDirection * blurRadius * t;
+        float2 sampleUv = saturate(inTexCoord - sampleOffset);
+        accumColor += tex2D(colorLinearSampler, sampleUv) * weight;
         accumWeight += weight;
     }
 
