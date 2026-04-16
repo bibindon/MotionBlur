@@ -30,6 +30,7 @@ LPD3DXEFFECT g_pEffect2 = NULL;
 
 bool g_bClose = false;
 bool g_bShowDebugTarget = true;
+bool g_bEnableMotionBlur = true;
 
 // === 変更: RT を 2 枚用意 ===
 LPDIRECT3DTEXTURE9 g_pRenderTarget = NULL;
@@ -399,9 +400,13 @@ void RenderPass1()
     D3DXVECTOR3 up(0, 1, 0);
     D3DXMatrixLookAtLH(&View, &eye, &at, &up);
 
+    hResult = g_pd3dDevice->ColorFill(pRT0, NULL, D3DCOLOR_XRGB(100, 100, 100));
+    assert(hResult == S_OK);
+    hResult = g_pd3dDevice->ColorFill(pRT1, NULL, D3DCOLOR_XRGB(128, 128, 128));
+    assert(hResult == S_OK);
     hResult = g_pd3dDevice->Clear(0, NULL,
-                                  D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
-                                  D3DCOLOR_XRGB(100, 100, 100),
+                                  D3DCLEAR_ZBUFFER,
+                                  0,
                                   1.0f, 0);
     assert(hResult == S_OK);
 
@@ -493,7 +498,8 @@ void RenderPass2()
 
     hResult = g_pEffect2->SetTexture("texture1", g_pRenderTarget);  assert(hResult == S_OK);
     hResult = g_pEffect2->SetTexture("texture2", g_pRenderTarget2); assert(hResult == S_OK);
-    hResult = g_pEffect2->SetFloat("g_blurScale", 2.0f);            assert(hResult == S_OK);
+    hResult = g_pEffect2->SetFloat("g_blurScale", g_bEnableMotionBlur ? 2.0f : 0.0f);
+    assert(hResult == S_OK);
     hResult = g_pEffect2->CommitChanges();                           assert(hResult == S_OK);
 
     DrawFullscreenQuad();
@@ -551,6 +557,11 @@ LRESULT WINAPI MsgProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
         if (wParam == '1')
         {
             g_bShowDebugTarget = !g_bShowDebugTarget;
+            return 0;
+        }
+        if (wParam == '2')
+        {
+            g_bEnableMotionBlur = !g_bEnableMotionBlur;
             return 0;
         }
         break;
